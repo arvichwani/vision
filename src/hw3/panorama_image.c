@@ -99,6 +99,7 @@ image find_and_draw_matches(image a, image b, float sigma, float thresh, int nms
     int mn = 0;
     descriptor *ad = harris_corner_detector(a, sigma, thresh, nms, &an);
     descriptor *bd = harris_corner_detector(b, sigma, thresh, nms, &bn);
+    //printf("%f, %f\n", ad[0].data[0], bd[0].data[0]);
     match *m = match_descriptors(ad, an, bd, bn, &mn);
 
     mark_corners(a, ad, an);
@@ -118,7 +119,10 @@ image find_and_draw_matches(image a, image b, float sigma, float thresh, int nms
 float l1_distance(float *a, float *b, int n)
 {
     // TODO: return the correct number.
-    return 0;
+	float dis = 0;
+	for (int i = 0; i<n; i++) 
+		dis += fabs(a[i]-b[i]);
+    return dis;
 }
 
 // Finds best matches between descriptors of two images.
@@ -137,15 +141,24 @@ match *match_descriptors(descriptor *a, int an, descriptor *b, int bn, int *mn)
     for(j = 0; j < an; ++j){
         // TODO: for every descriptor in a, find best match in b.
         // record ai as the index in *a and bi as the index in *b.
-        int bind = 0; // <- find the best match
+		float min_dist = l1_distance(a[j].data, b[0].data, a[j].n);
+		int bind = 0; // <- find the best match
+		for(i=1; i<bn; ++i){
+			float dist = l1_distance(a[j].data, b[i].data, a[j].n);
+			if (dist<min_dist){ 
+				bind = i;
+				min_dist = dist;
+			}
+		}		
         m[j].ai = j;
         m[j].bi = bind; // <- should be index in b.
         m[j].p = a[j].p;
         m[j].q = b[bind].p;
-        m[j].distance = 0; // <- should be the smallest L1 distance!
+        m[j].distance = min_dist; // <- should be the smallest L1 distance!
     }
 
     int count = 0;
+	
     int *seen = calloc(bn, sizeof(int));
     // TODO: we want matches to be injective (one-to-one).
     // Sort matches based on distance using match_compare and qsort.
@@ -153,6 +166,14 @@ match *match_descriptors(descriptor *a, int an, descriptor *b, int bn, int *mn)
     // Each point should only be a part of one match.
     // Some points will not be in a match.
     // In practice just bring good matches to front of list, set *mn.
+	qsort(m, an, sizeof(match), match_compare);
+	for(int i=0; i<an; i++) {
+		if (seen[m[i].bi]==0) {
+			seen[m[i].bi]=1;
+			m[count] = m[i];
+			count+=1;
+		}
+	}
     *mn = count;
     free(seen);
     return m;
@@ -168,7 +189,13 @@ point project_point(matrix H, point p)
     // TODO: project point p with homography H.
     // Remember that homogeneous coordinates are equivalent up to scalar.
     // Have to divide by.... something...
+	c.data[0][0] = p.x;
+	c.data[1][0] = p.y;
+	c.data[2][0] = 1;
+	matrix a = matrix_mult_matrix(H, c);
     point q = make_point(0, 0);
+	q.x = a.data[0][0]/a.data[2][0];
+	q.y = a.data[1][0]/a.data[2][0];
     return q;
 }
 
@@ -178,7 +205,8 @@ point project_point(matrix H, point p)
 float point_distance(point p, point q)
 {
     // TODO: should be a quick one.
-    return 0;
+	float dist = sqrt(pow(p.x-q.x,2)+pow(p.y-q.y,2));
+    return dist;
 }
 
 // Count number of inliers in a set of matches. Should also bring inliers
@@ -197,6 +225,17 @@ int model_inliers(matrix H, match *m, int n, float thresh)
     // TODO: count number of matches that are inliers
     // i.e. distance(H*p, q) < thresh
     // Also, sort the matches m so the inliers are the first 'count' elements.
+	for(i=0; i<n; i++) {
+		point proj_p = project_point(H, m[i].p);
+		float dist = point_distance(proj_p, m[i].q);
+		// printf("proj_p is (%f, %f), amd q is (%f, %f)\n", proj_p.x, proj_p.y, m[i].q.x, m[i].q.y);
+		if (dist<thresh) {
+			match temp = m[count];
+			m[count]=m[i];
+			m[i]=temp;
+			count+=1;
+		}
+	}
     return count;
 }
 
@@ -206,6 +245,12 @@ int model_inliers(matrix H, match *m, int n, float thresh)
 void randomize_matches(match *m, int n)
 {
     // TODO: implement Fisher-Yates to shuffle the array.
+	for(int i=n-1; i>0; i--){
+		int j = rand()%(i+1);
+		match temp = m[i];
+		m[i] = m[j];
+		m[j] = temp;
+	}
 }
 
 // Computes homography between two images given matching pixels.
@@ -224,19 +269,36 @@ matrix compute_homography(match *matches, int n)
         double y  = matches[i].p.y;
         double yp = matches[i].q.y;
         // TODO: fill in the matrices M and b.
-
+		M.data[2*i][0] = x;
+		M.data[2*i][1] = y;
+		M.data[2*i][2] = 1;
+		M.data[2*i][6] = -x*xp;
+		M.data[2*i][7] = -y*xp;
+		M.data[2*i+1][3] = x;
+		M.data[2*i+1][4] = y;
+		M.data[2*i+1][5] = 1;
+		M.data[2*i+1][6] = -x*yp;
+		M.data[2*i+1][7] = -y*yp;
+		b.data[2*i][0] = xp;
+		b.data[2*i+1][0] = yp;
     }
     matrix a = solve_system(M, b);
-    free_matrix(M); free_matrix(b); 
+	/*
+	printf("b is\n");
+	print_matrix(b);
+	printf("M*a is\n");
+	print_matrix(matrix_mult_matrix(M,a));
+	*/
+	free_matrix(M); free_matrix(b); 
 
     // If a solution can't be found, return empty matrix;
     matrix none = {0};
     if(!a.data) return none;
-
     matrix H = make_matrix(3, 3);
     // TODO: fill in the homography H based on the result in a.
-
-
+	for(int i=0; i<8; i++) 
+		H.data[i/3][i%3] = a.data[i][0];
+	H.data[2][2] = 1;
     free_matrix(a);
     return H;
 }
@@ -248,9 +310,9 @@ matrix compute_homography(match *matches, int n)
 // int k: number of iterations to run.
 // int cutoff: inlier cutoff to exit early.
 // returns: matrix representing most common homography between matches.
+
 matrix RANSAC(match *m, int n, float thresh, int k, int cutoff)
 {
-    int e;
     int best = 0;
     matrix Hb = make_translation_homography(256, 0);
     // TODO: fill in RANSAC algorithm.
@@ -263,6 +325,20 @@ matrix RANSAC(match *m, int n, float thresh, int k, int cutoff)
     //         if it's better than the cutoff:
     //             return it immediately
     // if we get to the end return the best homography
+	for(int i=0; i<k; i++) {
+		randomize_matches(m, n);
+		matrix Hi = compute_homography(m, 4);
+		int inliers = model_inliers(Hi, m, n, thresh);
+		if (inliers>best) {
+			matrix Hi2 = compute_homography(m, inliers);
+			best = inliers;
+			Hb = Hi2;
+		// why should we compute inliers again? And why we don't compute, it comes that a have so solution
+			if (model_inliers(Hb, m, n, thresh)>=cutoff)
+				return Hb;
+		}
+	}
+	// printf("n is %i, max_inlier is %i\n", n, max_inliers);
     return Hb;
 }
 
@@ -308,6 +384,8 @@ image combine_images(image a, image b, matrix H)
         for(j = 0; j < a.h; ++j){
             for(i = 0; i < a.w; ++i){
                 // TODO: fill in.
+				float val = get_pixel(a, i, j, k);
+				set_pixel(c, i-dx, j-dy, k, val);
             }
         }
     }
@@ -317,7 +395,19 @@ image combine_images(image a, image b, matrix H)
     // and see if their projection from a coordinates to b coordinates falls
     // inside of the bounds of image b. If so, use bilinear interpolation to
     // estimate the value of b at that projection, then fill in image c.
-
+	
+	for(int k=0; k<a.c; k++) {
+		for (int y=topleft.y; y<botright.y; y++) {
+			for (int x=topleft.x; x<botright.x; x++) {
+				point proj = project_point(H, make_point(x, y));
+				if(proj.x<b.w && proj.x>=0 && proj.y<b.h && proj.y>=0){
+					float val = bilinear_interpolate(b, proj.x, proj.y, k);
+					set_pixel(c, x-dx, y-dy, k, val);
+				}
+			}
+		}
+	}
+	
     return c;
 }
 
@@ -370,6 +460,50 @@ image panorama_image(image a, image b, float sigma, float thresh, int nms, float
 image cylindrical_project(image im, float f)
 {
     //TODO: project image onto a cylinder
-    image c = copy_image(im);
-    return c;
+	// define the size of cylin image
+	int xc = im.w/2;
+	int yc = im.h/2;
+	int flat_w = 2*f*atan2(xc/f, 1);
+	int flat_h = im.h;
+	// printf("cy h is %i\n", flat_h);
+	image flat = make_image(flat_w, flat_h, im.c);
+	// for every pixel, do interpolation
+	for (int k=0; k<im.c; k++) {
+		for (int y=0; y<flat.h; y++){
+			for (int x=0; x<flat.w; x++) {
+				float x2=tan((x-flat.w/2)/f)*f+xc;
+				float y2=(y-flat.h/2)/cos((x-flat.w/2)/f)+yc;
+				float val = 0;
+				if (x2>=0 && x2<im.w && y2>=0 && y2<=im.h)
+					val = bilinear_interpolate(im, x2, y2, k);
+				set_pixel(flat, x, y, k, val); 
+			}
+		}
+	}
+    return flat;
+}
+image spherical_project(image im, float f)
+{
+    //TODO: project image onto a spheric
+	// define the size of cylin image
+	int xc = im.w/2;
+	int yc = im.h/2;
+	int flat_w = 2*f*atan2(xc/f, 1);
+	int flat_h = 2*f*atan2(yc/f, 1);
+	// printf("sp h is %i\n", flat_h);
+	image flat = make_image(flat_w, flat_h, im.c);
+	// for every pixel, do interpolation
+	for (int k=0; k<im.c; k++) {
+		for (int y=0; y<flat.h; y++){
+			for (int x=0; x<flat.w; x++) {
+				float x2=f*tan((x-flat.w/2)/f)+xc;
+				float y2=f*tan((y-flat.h/2)/f)/cos((x-flat.w/2)/f)+yc;
+				float val = 0;
+				if (x2>=0 && x2<im.w && y2>=0 && y2<=im.h)
+					val = bilinear_interpolate(im, x2, y2, k);
+				set_pixel(flat, x, y, k, val); 
+			}
+		}
+	}
+    return flat;
 }
