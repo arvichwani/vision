@@ -6,68 +6,81 @@
 
 float get_pixel(image im, int x, int y, int c)
 {
-    if (x < 0)
-        x = 0;
-    if (y < 0)
-        y = 0;
-    if (c < 0)
-        c = 0;
-    if(x >= im.w)
-        x = im.w - 1;
-    if(y >= im.h)
-        y = im.h - 1;
-    if (c >= im.c)
-        c = im.c - 1;
-
-    float pixel = im.data[c*im.h*im.w + y*im.w + x] ;
-    
-    return pixel;
-    return 0;
+    // TODO Fill this in
+    if (x<0) 
+		x=0;
+	if (x>=im.w)
+		x=im.w-1;
+	if (y<0)
+		y=0;
+	if (y>=im.h)
+		y=im.h-1;
+	return im.data[c*im.h*im.w + y*im.w + x];
 }
 
 void set_pixel(image im, int x, int y, int c, float v)
 {
-    im.data[c*im.h*im.w + y*im.w + x] = v;
-    
+    // TODO Fill this in
+	if (x<0 || x>=im.w || y<0 || y>=im.h || c<0 || c>im.c) return;
+	assert(x<im.w && y<im.h && c<im.c);
+	im.data[c*im.w*im.h + y*im.w +x] =v;
 }
 
 image copy_image(image im)
 {
     image copy = make_image(im.w, im.h, im.c);
-    for(int i=0; i<im.c*im.h*im.w; i++)
-        copy.data[i] = im.data[i];
+	int i,j,k,count=0;
+	for (k=0; k<im.c; ++k){
+		for (i=0; i<im.w; ++i){
+			for (j=0; j<im.h; ++j) {
+				copy.data[count]=im.data[count];
+				count++;
+			}
+		}
+	}
+    // TODO Fill this in
     return copy;
 }
 
 image rgb_to_grayscale(image im)
 {
-     assert(im.c == 3);
+    assert(im.c == 3);
     image gray = make_image(im.w, im.h, 1);
-
-     int next_channel = gray.w * gray.h;
-    for(int y=0; y<gray.h; y++)
-        for(int x=0; x<gray.w; x++)
-            gray.data[y * gray.w + x] = 0.299 * im.data[y * gray.w + x] + 0.587 * im.data[y * gray.w + x + next_channel] + 0.114 * im.data[y * gray.w + x + next_channel * 2];
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++) {
+			gray.data[i+j*im.w]=0.299*get_pixel(im, i, j, 0)+0.587*get_pixel(im, i, j, 1)+0.114*get_pixel(im, i, j, 2);
+		}
+	}
+    // TODO Fill this in
     return gray;
 }
 
 void shift_image(image im, int c, float v)
 {
-     int start = c * im.h * im.w;
-    
-    for(int i=start; i<start + im.h*im.w; i++)
-        im.data[i] += v;
+    // TODO Fill this in
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++) {
+			float val=get_pixel(im, i, j, c);
+			set_pixel(im, i, j, c, val+v);
+		}
+	}
 }
 
 void clamp_image(image im)
 {
-     for (int i=0; i<im.c*im.h*im.w; i++)
-        if(im.data[i] < 0.)
-            im.data[i] = 0.;
-        else if(im.data[i] > 1.)
-            im.data[i] = 1.;
+    // TODO Fill this in
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++){
+			for (int k=0; k<im.c ;k++) {
+				if (get_pixel(im, i, j, k)<0) set_pixel(im, i, j, k, 0);
+				else if (get_pixel(im, i, j,k)>1) set_pixel(im, i, j, k,1);
+			}
+		}
+	}
 }
 
+
+// These might be handy
 float three_way_max(float a, float b, float c)
 {
     return (a > b) ? ( (a > c) ? a : c) : ( (b > c) ? b : c) ;
@@ -80,115 +93,137 @@ float three_way_min(float a, float b, float c)
 
 void rgb_to_hsv(image im)
 {
-    float H,V,S;
-    float R,G,B;
-    float C,H_=0;
-    for(int y=0; y<im.h; y++)
-        for(int x=0; x<im.w; x++){
-            R = get_pixel(im, x, y, 0);
-            G = get_pixel(im, x, y, 1);
-            B = get_pixel(im, x, y, 2);
-            
-            V = three_way_max(R,G,B);
-            C = V -three_way_min(R,G,B);
-            if (V == 0)
-                S = 0;
-            else
-                S = C / V;
+    // TODO Fill this in
+	assert(im.c==3);
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++) {
+			float R= get_pixel(im, i, j, 0);
+			float G= get_pixel(im, i, j, 1);
+			float B= get_pixel(im, i, j, 2);
+			float V = three_way_max(R,G,B);
+			float m = three_way_min(R,G,B);
+			float C = V-m;
+			float S= (R==0 && G==0 && B==0) ? 0 : C/V;
+			float H1;
+			if (C==0) H1=0;
+			else if (V==R) H1 = (G-B)/C;
+			else if (V==G) H1 = (B-R)/C + 2;
+			else if (V==B) H1 = (R-G)/C + 4;
+			float H = (H1<0) ? H1/6 + 1 : H1/6;
+			set_pixel(im, i, j, 0, H);
+			set_pixel(im, i, j, 1, S);
+			set_pixel(im, i, j, 2, V);
+		}
+	}	 
 
-            if (C == 0.)
-                H_ = 0;
-            else if(V==R)
-                H_ = (G-B)/C;
-            else if(V==G)
-                H_ = (B-R)/C+2;
-            else if(V==B)
-                H_ = (R-G)/C+4;
-            
-            if (H_<0)
-                H = H_/6+1;
-            else
-                H = H_/6;            
-
-            set_pixel(im, x, y, 0, H);
-            set_pixel(im, x, y, 1, S);
-            set_pixel(im, x, y, 2, V);
-        }
 }
 
 void hsv_to_rgb(image im)
 {
-    float R,G,B;
-    float H,V,S;
-    float C,min,max,H_;
-    for(int y=0; y<im.h; y++)
-        for(int x=0; x<im.w; x++){
-            H = get_pixel(im, x, y, 0);
-            S = get_pixel(im, x, y, 1);
-            V = get_pixel(im, x, y, 2);
-            
-            C = V * S;
-            max = V;
-            min = V-C;
+    // TODO Fill this in
+	assert(im.c==3);
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++) {
+			float H = get_pixel(im, i, j, 0);
+			float S = get_pixel(im, i, j, 1);
+			float V = get_pixel(im, i, j, 2);
+			float C = V * S;
+			float m = V-C;
+			float H1 = H * 6;
+			float X = C*(1-fabs(fmod(H1, 2) - 1));
+			float R1, G1, B1;
+			float R,G,B;
+/*			if (H==0) {
+				R1=0;
+				G1=0;
+				B1=0;
+			}
+*/
+			if (0<=H1 && H1<=1) {
+				R1=C;
+				G1=X;
+				B1=0;
+			}
+			else if (H1<=2) {
+				R1=X;
+				G1=C;
+				B1=0;
+			}
+			else if (H1<=3) {
+				R1=0;
+				G1=C;
+				B1=X;
+			}
+			else if (H1<=4) {
+				R1=0;
+				G1=X;
+				B1=C;
+			}
+			else if (H1<=5) {
+				R1=X;
+				G1=0;
+				B1=C;
+			}
+			else if (H1<=6) {
+				R1=C;
+				G1=0;
+				B1=X;
+			}
+			R=R1+m;
+			G=G1+m;
+			B=B1+m;
+			set_pixel(im, i, j, 0 ,R);
+			set_pixel(im, i, j, 1, G);
+			set_pixel(im, i, j, 2, B);
+		}
+	}
 
-            H_ = H * 6 ;
-
-            if(C == 0.){
-                R = V;
-                G = V;
-                B = V;
-            }else if(H_ > 5 && H_ <6){
-                R = max;
-                G = min;
-                B = ((((H_ /  6) - 1) * 6 * C) - G) * -1;
-            }else if (H_ == 5) {
-                R = max;
-                G = min;
-                B = max;
-            }else if (H_ < 5 && H_ > 4) {
-                G = min;
-                R = (H_ - 4) * C + G;
-                B = max;
-            }else if (H_ == 4) {
-                R = min;
-                G = min;
-                B = max;
-            }else if (H_ < 4 && H_ > 3) {
-                R = min;
-                G = (((H_ - 4) * C) - R) * -1;
-                B = max;
-            }else if (H_ == 3) {
-                R = min;
-                G = max;
-                B = max;
-            }else if (H_ < 3 && H_ > 2) {
-                R = min;
-                G = max;
-                B = ((H_ - 2) * C) + R;
-            }else if (H_ == 2) {
-                R = min;
-                G = max;
-                B = min;
-            }else if (H_ < 2 && H_ > 1) {
-                G = max;
-                B = min;
-                R = (((H_ - 2) * C) - B) * -1;
-            }else if (H_ == 1) {
-                R = max;
-                G = max;
-                B = min;
-            }else if (H_ < 1 && H_ > 0) {
-                R = max;
-                B = min;
-                G = (H_ * C) + B;
-            }else {
-                R = max;
-                G = min;
-                B = min;
-            }
-
-            set_pixel(im, x, y, 0, R);
-            set_pixel(im, x, y, 1, G);
-            set_pixel(im, x, y, 2, B);
-        }
 }
+
+void scale_image(image im, int c, float v)
+{
+    for (int i=0; i<im.w; i++) {
+        for (int j=0; j<im.h; j++) {
+            float val=get_pixel(im, i, j, c);
+			float newVal=val*v;
+            set_pixel(im, i, j, c, newVal);
+        }
+    }
+}
+
+/*
+void rgb_to_hcl(image im)
+{
+    float HCLgamma=3;
+	float HCLy0=100;
+	float HCLmaxL=0.530454533953517;
+	float PI=3.1415926536;
+	for (int i=0; i<im.w; i++) {
+		for (int j=0; j<im.h; j++) {
+			
+    		float H = 0;
+			float R=get_pixel(im, i, j, 0);
+			float G=get_pixel(im, i, j, 1);
+			float B=get_pixel(im, i, j, 2);
+    		float U = three_way_min(R, G, B);
+    		float V = three_way_max(R, G, B);
+    		float Q = HCLgamma / HCLy0;
+    		float y = V - U;
+			float x;
+			float z;
+    		if (y != 0)
+    		{
+      			H = atan2(G - B, R - G) / PI;
+      			Q *= U / V;
+    		}
+    		Q = exp(Q);
+    		x = frac(H / 2 - min(frac(H), frac(-H)) / 6);
+    		y *= Q;
+    		z = lerp(-U, V, Q) / (HCLmaxL * 2);
+    		set_pixel(im, i, j, 0, x);
+			set_pixel(im, i, j, 1, y);
+			set_pixel(im, i, j, 2, z);
+		}
+	}
+}
+*/
