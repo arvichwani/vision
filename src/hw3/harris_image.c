@@ -7,9 +7,7 @@
 #include "matrix.h"
 #include <time.h>
 
-// Frees an array of descriptors.
-// descriptor *d: the array.
-// int n: number of elements in array.
+//int n : jumlah elemen dalam array
 void free_descriptors(descriptor *d, int n)
 {
     int i;
@@ -19,10 +17,10 @@ void free_descriptors(descriptor *d, int n)
     free(d);
 }
 
-// Create a feature descriptor for an index in an image.
-// image im: source image.
-// int i: index in image for the pixel we want to describe.
-// returns: descriptor for that index.
+// Buat deskriptor fitur untuk indeks dalam gambar
+// image im: sumber image
+// int i: indeks dalam gambar untuk piksel yang ingin digambarkan
+// returns: deskriptor untuk indeks tersebut
 descriptor describe_index(image im, int i)
 {
     int w = 5;
@@ -33,9 +31,8 @@ descriptor describe_index(image im, int i)
     d.n = w*w*im.c;
     int c, dx, dy;
     int count = 0;
-    // If you want you can experiment with other descriptors
-    // This subtracts the central value from neighbors
-    // to compensate some for exposure/lighting changes.
+    // mengurangi nilai sentral dari neighbors, 
+    //untuk mengkompensasi beberapa perubahan eksposur/pencahayaan
     for(c = 0; c < im.c; ++c){
         float cval = im.data[c*im.w*im.h + i];
         for(dx = -w/2; dx < (w+1)/2; ++dx){
@@ -48,9 +45,9 @@ descriptor describe_index(image im, int i)
     return d;
 }
 
-// Marks the spot of a point in an image.
-// image im: image to mark.
-// ponit p: spot to mark in the image.
+// menandai tempat titik dalam gambar
+// image im: gambar untuk menandai
+// point p: tempat untuk menandai pada gambar
 void mark_spot(image im, point p)
 {
     int x = p.x;
@@ -66,10 +63,10 @@ void mark_spot(image im, point p)
     }
 }
 
-// Marks corners denoted by an array of descriptors.
-// image im: image to mark.
-// descriptor *d: corners in the image.
-// int n: number of descriptors to mark.
+// menandai sudut dengan array deskriptor
+// image im: gambar untuk menandai
+// descriptor *d: sudut pada gambar
+// int n: jumlah deskriptor untuk menandai
 void mark_corners(image im, descriptor *d, int n)
 {
     int i;
@@ -78,19 +75,19 @@ void mark_corners(image im, descriptor *d, int n)
     }
 }
 
-// Creates a 1d Gaussian filter.
-// float sigma: standard deviation of Gaussian.
-// returns: single row image of the filter.
+// membuat filter Gaussian 1d
+// float sigma: standar deviasi Gaussian
+// returns: gambar baris tunggal dari filter
 image make_1d_gaussian(float sigma)
 {
-    // TODO: optional, make separable 1d Gaussian.
+    // TODO: opsional, buat 1d Gaussian yang dapat dipisahkan
     return make_image(1,1,1);
 }
 
-// Smooths an image using separable Gaussian filter.
-// image im: image to smooth.
-// float sigma: std dev. for Gaussian.
-// returns: smoothed image.
+// menghaluskan gambar menggunakan filter Gaussian yang dapat dipisahkan
+// image im: gambar untuk menghaluskan
+// float sigma: std dev untuk Gaussian
+// returns: gambar halus
 image smooth_image(image im, float sigma)
 {
     if(1){
@@ -99,149 +96,132 @@ image smooth_image(image im, float sigma)
         free_image(g);
         return s;
     } else {
-        // TODO: optional, use two convolutions with 1d gaussian filter.
-        // If you implement, disable the above if check.
+        // TODO: opsional, gunakan dua konvolusi dengan filter 1d gaussian
         return copy_image(im);
     }
 }
 
-// Calculate the structure matrix of an image.
-// image im: the input image.
-// float sigma: std dev. to use for weighted sum.
-// returns: structure matrix. 1st channel is Ix^2, 2nd channel is Iy^2,
-//          third channel is IxIy.
+// menghitung struktur matriks dari sebuah gambar
+// image im: gambar masukan
+// float sigma: std dev digunakan untuk menghitung weighted sum
+// returns:struktur matriks channel 1: lx^2, channel 2: ly^2, channel 3: lxly
 image structure_matrix(image im, float sigma)
 {
-    // TODO: calculate structure matrix for im.
-	image gx_filter = make_gx_filter();
-	image gy_filter = make_gy_filter();
-	image Ix_img = convolve_image(im, gx_filter, 0);
-	image Iy_img = convolve_image(im, gy_filter, 0);
-	image gs_filter = make_gaussian_filter(sigma);
-	image measure_img = make_image(im.w, im.h, 3);
-	for (int y=0; y<im.h; y++) {
-		for (int x=0; x<im.w; x++) {
-			float Ix2 = pow(get_pixel(Ix_img, x, y, 0), 2);
-			float Iy2 = pow(get_pixel(Iy_img, x, y, 0), 2);
-			float IxIy = get_pixel(Ix_img, x, y, 0) * get_pixel(Iy_img, x, y, 0);
-			set_pixel(measure_img, x, y, 0, Ix2);
-			set_pixel(measure_img, x, y, 1, Iy2);
-			set_pixel(measure_img, x, y, 2, IxIy);
-		}
-	}
-	image S = convolve_image(measure_img, gs_filter, 1);
-	free_image(measure_img);
-	free_image(gx_filter);
-	free_image(gy_filter);
-	free_image(Ix_img);
-	free_image(Iy_img);
-	free_image(gs_filter);
+    // TODO: menghitung struktur matriks untuk im
+    image gx_filter = make_gx_filter();
+    image gy_filter = make_gy_filter();
+    image Ix_img = convolve_image(im, gx_filter, 0);
+    image Iy_img = convolve_image(im, gy_filter, 0);
+    image gs_filter = make_gaussian_filter(sigma);
+    image measure_img = make_image(im.w, im.h, 3);
+    for (int y=0; y<im.h; y++) {
+        for (int x=0; x<im.w; x++) {
+            float Ix2 = pow(get_pixel(Ix_img, x, y, 0), 2);
+            float Iy2 = pow(get_pixel(Iy_img, x, y, 0), 2);
+            float IxIy = get_pixel(Ix_img, x, y, 0) * get_pixel(Iy_img, x, y, 0);
+            set_pixel(measure_img, x, y, 0, Ix2);
+            set_pixel(measure_img, x, y, 1, Iy2);
+            set_pixel(measure_img, x, y, 2, IxIy);
+        }
+    }
+    image S = convolve_image(measure_img, gs_filter, 1);
+    free_image(measure_img);
+    free_image(gx_filter);
+    free_image(gy_filter);
+    free_image(Ix_img);
+    free_image(Iy_img);
+    free_image(gs_filter);
     return S;
 }
 
-// Estimate the cornerness of each pixel given a structure matrix S.
-// image S: structure matrix for an image.
-// returns: a response map of cornerness calculations.
+//  perkirakan sudut sudut setiap piksel dengan struktur matriks S
+// image S: struktur matriks untuk gambar
 image cornerness_response(image S)
 {
     image R = make_image(S.w, S.h, 1);
-    // TODO: fill in R, "cornerness" for each pixel using the structure matrix.
-    // We'll use formulation det(S) - alpha * trace(S)^2, alpha = .06.
-	for(int y=0; y<S.h; y++) {
-		for (int x = 0; x<S.w; x++) {
-			// matrix Smatrix = make_matrix(2,2);
-			float a = get_pixel(S, x, y, 0);
-			float b = get_pixel(S, x, y, 2);
-			float c = get_pixel(S, x, y, 2);
-			float d = get_pixel(S, x ,y, 1);
-			float det = a*d - b*c;
-			float trace = a + d;
-			float val = det - 0.06*pow(trace, 2);
-			set_pixel(R, x, y, 0, val);
-		}
-	}
+    //TODO: isi R, "cornerness" untuk setiap piksel menggunakan matriks 
+    // gunakan formulasi det(S) - alpha * trace(S)^2, alpha = .06
+    for(int y=0; y<S.h; y++) {
+        for (int x = 0; x<S.w; x++) {
+            // matrix Smatrix = make_matrix(2,2);
+            float a = get_pixel(S, x, y, 0);
+            float b = get_pixel(S, x, y, 2);
+            float c = get_pixel(S, x, y, 2);
+            float d = get_pixel(S, x ,y, 1);
+            float det = a*d - b*c;
+            float trace = a + d;
+            float val = det - 0.06*pow(trace, 2);
+            set_pixel(R, x, y, 0, val);
+        }
+    }
     return R;
 }
 
-// Perform non-max supression on an image of feature responses.
-// image im: 1-channel image of feature responses.
-// int w: distance to look for larger responses.
-// returns: image with only local-maxima responses within w pixels.
 image nms_image(image im, int w)
 {
     image r = copy_image(im);
-    // TODO: perform NMS on the response map.
-    // for every pixel in the image:
-    //     for neighbors within w:
-    //         if neighbor response greater than pixel response:
-    //             set response to be very low (I use -999999 [why not 0??])
-	for(int y = 0; y<im.h; y++) {
-		for (int x=0; x<im.w; x++) {
-			for (int x1=x-w; x1<=x+w; x1++){
-				for (int y1=y-w; y1<=y+w; y1++) {
-					if(get_pixel(im, x, y, 0)<get_pixel(im, x1, y1, 0))
-						set_pixel(r, x, y, 0, -999999);
-				}
-			}
-		}
-	}
+    // TODO: lakukan NMS pada response map
+    // untuk setiap piksel dalam gambar:
+    //     untuk neighbors dalam w:
+    //         jika neighbor response > pixel response:
+    //             atur response menjadi sangat rendah (misal: -999999)
+    for(int y = 0; y<im.h; y++) {
+        for (int x=0; x<im.w; x++) {
+            for (int x1=x-w; x1<=x+w; x1++){
+                for (int y1=y-w; y1<=y+w; y1++) {
+                    if(get_pixel(im, x, y, 0)<get_pixel(im, x1, y1, 0))
+                        set_pixel(r, x, y, 0, -999999);
+                }
+            }
+        }
+    }
     return r;
 }
 
-// Perform harris corner detection and extract features from the corners.
-// image im: input image.
-// float sigma: std. dev for harris.
-// float thresh: threshold for cornerness.
-// int nms: distance to look for local-maxes in response map.
-// int *n: pointer to number of corners detected, should fill in.
-// returns: array of descriptors of the corners in the image.
+// Lakukan deteksi sudut harris dan ekstrak fitur dari sudut
 descriptor *harris_corner_detector(image im, float sigma, float thresh, int nms, int *n)
 {
-    // Calculate structure matrix
+    // menghitung struktur matrix
     image S = structure_matrix(im, sigma);
 
-    // Estimate cornerness
+    // memperkirakan sudut
     image R = cornerness_response(S);
 
-    // Run NMS on the responses
+    // jalankan NMS pada responses
     image Rnms = nms_image(R, nms);
 
 
-    //TODO: count number of responses over threshold
-    int count = 0; // change this
-	for (int y=0; y<Rnms.h; y++) {
-		for (int x=0; x<Rnms.w; x++) {
-			if (get_pixel(Rnms, x, y, 0)>thresh)
-				count+=1;
-		}
-	}
+    //TODO: menghitung jumlah responses terhadap threshold
+    int count = 0; 
+    for (int y=0; y<Rnms.h; y++) {
+        for (int x=0; x<Rnms.w; x++) {
+            if (get_pixel(Rnms, x, y, 0)>thresh)
+                count+=1;
+        }
+    }
     int point[count];
-	int index = 0;
-	for (int y=0; y<Rnms.h; y++) {
-		for (int x=0; x<Rnms.w; x++) {
-			if (get_pixel(Rnms, x, y, 0)>thresh) {
-				point[index] = y*im.w+x;
-				index+=1;
-			}
-		}
-	}
-	// printf("the number is descripter is %i/n", count);
-    *n = count; // <- set *n equal to number of corners in image.
+    int index = 0;
+    for (int y=0; y<Rnms.h; y++) {
+        for (int x=0; x<Rnms.w; x++) {
+            if (get_pixel(Rnms, x, y, 0)>thresh) {
+                point[index] = y*im.w+x;
+                index+=1;
+            }
+        }
+    }
+    // atur *n sama dengan jumlah sudut pada gambar
+    *n = count;
     descriptor *d = calloc(count, sizeof(descriptor));
-    //TODO: fill in array *d with descriptors of corners, use describe_index.
-	for (int i=0; i<count; i++)
-		d[i] = describe_index(im, point[i]);
+    //TODO: isi array *d dengan deskriptor sudut, gunakan describe_index
+    for (int i=0; i<count; i++)
+        d[i] = describe_index(im, point[i]);
     free_image(S);
     free_image(R);
     free_image(Rnms);
     return d;
 }
 
-// Find and draw corners on an image.
-// image im: input image.
-// float sigma: std. dev for harris.
-// float thresh: threshold for cornerness.
-// int nms: distance to look for local-maxes in response map.
+// temukan dan gambar sudut pada gambar
 void detect_and_draw_corners(image im, float sigma, float thresh, int nms)
 {
     int n = 0;
